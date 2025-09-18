@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        // 🎉 Confirmation feedback for login
+        if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Welcome back!")));
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        // 🎉 Confirmation feedback for signup
+        if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Account created successfully!")),
         );

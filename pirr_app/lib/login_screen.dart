@@ -21,11 +21,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 🔎 Simple validation before calling Firebase
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _errorMessage = "Please enter a valid email address");
+      setState(() => _errorMessage = 'Please enter a valid email address');
       return;
     }
     if (password.length < 6) {
-      setState(() => _errorMessage = "Password must be at least 6 characters");
+      setState(() => _errorMessage = 'Password must be at least 6 characters');
       return;
     }
 
@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Welcome back!")));
+        ).showSnackBar(const SnackBar(content: Text('Welcome back!')));
       } else {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account created successfully!")),
+          const SnackBar(content: Text('Account created successfully!')),
         );
       }
       widget.onLogin();
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = "Unexpected error: $e";
+        _errorMessage = 'Unexpected error: $e';
       });
     }
   }
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_isLogin ? "Login" : "Sign Up")),
+      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Sign Up')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -72,18 +72,18 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(labelText: "Email"),
+              decoration: const InputDecoration(labelText: 'Email'),
               keyboardType: TextInputType.emailAddress,
             ),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"),
+              decoration: const InputDecoration(labelText: 'Password'),
               obscureText: true,
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _authenticate,
-              child: Text(_isLogin ? "Login" : "Sign Up"),
+              child: Text(_isLogin ? 'Login' : 'Sign Up'),
             ),
             TextButton(
               onPressed: () => setState(() {
@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 _errorMessage = ''; // clear errors when switching mode
               }),
               child: Text(
-                _isLogin ? "Create an account" : "I already have an account",
+                _isLogin ? 'Create an account' : 'I already have an account',
               ),
             ),
             if (_errorMessage.isNotEmpty) ...[

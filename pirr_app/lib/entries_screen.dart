@@ -48,7 +48,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
     try {
       await remoteConfig.fetchAndActivate();
     } catch (e) {
-      debugPrint("Remote Config fetch failed: $e");
+      debugPrint('Remote Config fetch failed: $e');
     }
 
     final value = remoteConfig.getBool('showDateChip');

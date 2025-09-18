@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "452100679757",
+    "project_id": "mini-pirr",
+    "storage_bucket": "mini-pirr.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:452100679757:android:618b99cebed1ed8ff61404",
+        "android_client_info": {
+          "package_name": "com.example.pirr_mini"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4G0YBd-3oytCJt-TjgcT9pvxWEFWg-wo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

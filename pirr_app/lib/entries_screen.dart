@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class EntriesScreen extends StatefulWidget {
   const EntriesScreen({super.key});
@@ -14,11 +17,29 @@ class EntriesScreen extends StatefulWidget {
 class _EntriesScreenState extends State<EntriesScreen> {
   final _textController = TextEditingController();
   bool _showDateChip = false; // controlled by Remote Config
+  final Map<String, bool> _entryShowDate = {}; // per-entry visibility
+  static const String _prefsKeyEntryShowDate = 'entryShowDateVisibility';
+
+  String _timeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    final weeks = (diff.inDays / 7).floor();
+    if (weeks < 5) return '${weeks}w ago';
+    final months = (diff.inDays / 30).floor();
+    if (months < 12) return '${months}mo ago';
+    final years = (diff.inDays / 365).floor();
+    return '${years}y ago';
+  }
 
   @override
   void initState() {
     super.initState();
     _setupRemoteConfig();
+    _loadEntryVisibility();
   }
 
   /// Initialize and fetch Remote Config
@@ -26,7 +47,15 @@ class _EntriesScreenState extends State<EntriesScreen> {
     final remoteConfig = FirebaseRemoteConfig.instance;
 
     // Set default values in case fetch fails
-    await remoteConfig.setDefaults({'showDateChip': false});
+    await remoteConfig.setDefaults({'showDateChip': true});
+
+    // Dev-friendly settings so new values apply immediately
+    await remoteConfig.setConfigSettings(
+      RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 10),
+        minimumFetchInterval: Duration.zero,
+      ),
+    );
 
     try {
       await remoteConfig.fetchAndActivate();
@@ -34,8 +63,10 @@ class _EntriesScreenState extends State<EntriesScreen> {
       debugPrint("Remote Config fetch failed: $e");
     }
 
+    final value = remoteConfig.getBool('showDateChip');
+    debugPrint('Remote Config showDateChip: $value');
     setState(() {
-      _showDateChip = remoteConfig.getBool('showDateChip');
+      _showDateChip = value;
     });
   }
 
@@ -76,6 +107,39 @@ class _EntriesScreenState extends State<EntriesScreen> {
       name: 'entry_deleted',
       parameters: {'entry_id': docId},
     );
+
+    // Clean up persisted visibility for deleted entry
+    if (_entryShowDate.containsKey(docId)) {
+      setState(() {
+        _entryShowDate.remove(docId);
+      });
+      await _saveEntryVisibility();
+    }
+  }
+
+  Future<void> _loadEntryVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_prefsKeyEntryShowDate);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        decoded.forEach((key, value) {
+          if (value is bool) {
+            _entryShowDate[key] = value;
+          }
+        });
+        if (mounted) setState(() {});
+      }
+    } catch (_) {
+      // ignore malformed data
+    }
+  }
+
+  Future<void> _saveEntryVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(_entryShowDate);
+    await prefs.setString(_prefsKeyEntryShowDate, raw);
   }
 
   @override
@@ -133,20 +197,50 @@ class _EntriesScreenState extends State<EntriesScreen> {
                   itemBuilder: (context, index) {
                     final doc = docs[index];
                     final data = doc.data();
+                    final show = _entryShowDate[doc.id] ?? _showDateChip;
                     return ListTile(
                       title: Text(data['text'] ?? ''),
                       // Only show date if Remote Config flag is true
-                      subtitle: (_showDateChip && data['createdAt'] != null)
-                          ? Text(
-                              data['createdAt'].toDate().toString().substring(
-                                0,
-                                16,
-                              ),
+                      subtitle: (show)
+                          ? Wrap(
+                              spacing: 8,
+                              children: [
+                                Chip(
+                                  avatar: const Icon(Icons.schedule, size: 18),
+                                  label: Text(
+                                    (() {
+                                      final ts = data['createdAt'];
+                                      if (ts is Timestamp) {
+                                        final dt = ts.toDate().toLocal();
+                                        return '${DateFormat('yyyy-MM-dd HH:mm:ss').format(dt)} • ${_timeAgo(dt)}';
+                                      }
+                                      return 'just now';
+                                    })(),
+                                  ),
+                                ),
+                              ],
                             )
                           : null,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteEntry(doc.id),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: show ? 'Hide date' : 'Show date',
+                            icon: Icon(
+                              show ? Icons.schedule : Icons.schedule_outlined,
+                            ),
+                            onPressed: () async {
+                              setState(() {
+                                _entryShowDate[doc.id] = !show;
+                              });
+                              await _saveEntryVisibility();
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteEntry(doc.id),
+                          ),
+                        ],
                       ),
                     );
                   },

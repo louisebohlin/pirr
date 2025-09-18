@@ -1,0 +1,18 @@
+// Firestore security rules for Pirr Mini
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Match a user document
+    match /users/{userId} {
+      // Allow the user to read/write their own user doc
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Nested "entries" collection for each user
+      match /entries/{entryId} {
+        // Only the owner can create, read, update, or delete entries
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

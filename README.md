@@ -1,6 +1,6 @@
 # Pirr Mini App
 
-A minimal Flutter + Firebase app demonstrating authentication, Firestore, Remote Config, and Analytics. Perfect as a code sample or educational material.
+A minimal Flutter + Firebase app demonstrating authentication, Firestore, Remote Config, and Analytics.
 
 ## 🚀 Running the App
 

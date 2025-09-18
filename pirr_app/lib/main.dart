@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'login_screen.dart';
-import 'entries_screen.dart';
+import 'package:pirr_app/login_screen.dart';
+import 'package:pirr_app/entries_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,17 +29,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pirr Mini',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      // Use Material 3 defaults if available; keep theme minimal for the mini app
+      // theme: ThemeData(colorSchemeSeed: Colors.blue, useMaterial3: true),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+            return Scaffold(body: Center(child: CircularProgressIndicator()));
           }
+          // Guard against null user explicitly for readability
           if (snapshot.hasData) {
-            return const EntriesScreen();
+            return EntriesScreen();
           }
           return LoginScreen(onLogin: () {});
         },

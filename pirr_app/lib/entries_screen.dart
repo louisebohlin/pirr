@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:pirr_app/utils/time_ago.dart';
 
 class EntriesScreen extends StatefulWidget {
   const EntriesScreen({super.key});
@@ -20,20 +21,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
   final Map<String, bool> _entryShowDate = {}; // per-entry visibility
   static const String _prefsKeyEntryShowDate = 'entryShowDateVisibility';
 
-  String _timeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
-    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    final weeks = (diff.inDays / 7).floor();
-    if (weeks < 5) return '${weeks}w ago';
-    final months = (diff.inDays / 30).floor();
-    if (months < 12) return '${months}mo ago';
-    final years = (diff.inDays / 365).floor();
-    return '${years}y ago';
-  }
+  // Moved to utils for testability: see formatTimeAgo
 
   @override
   void initState() {
@@ -72,7 +60,11 @@ class _EntriesScreenState extends State<EntriesScreen> {
 
   /// Helper to get the current user's "entries" collection
   CollectionReference<Map<String, dynamic>> _entriesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      throw StateError('No authenticated user');
+    }
+    final uid = currentUser.uid;
     return FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -146,7 +138,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Entries"),
+        title: const Text('My Entries'),
         actions: [
           IconButton(
             onPressed: () async {
@@ -167,7 +159,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
                   child: TextField(
                     controller: _textController,
                     decoration: const InputDecoration(
-                      labelText: "Write something...",
+                      labelText: 'Write something...',
                     ),
                   ),
                 ),
@@ -178,19 +170,24 @@ class _EntriesScreenState extends State<EntriesScreen> {
           // Real-time list of entries
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _entriesRef()
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
+              stream: FirebaseAuth.instance.currentUser == null
+                  ? const Stream.empty()
+                  : _entriesRef()
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text("Error: ${snapshot.error}"));
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (FirebaseAuth.instance.currentUser == null) {
+                  return const Center(child: Text('Please sign in'));
                 }
                 final docs = snapshot.data?.docs ?? [];
                 if (docs.isEmpty) {
-                  return const Center(child: Text("No entries yet"));
+                  return const Center(child: Text('No entries yet'));
                 }
                 return ListView.builder(
                   itemCount: docs.length,
@@ -212,7 +209,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
                                       final ts = data['createdAt'];
                                       if (ts is Timestamp) {
                                         final dt = ts.toDate().toLocal();
-                                        return '${DateFormat('yyyy-MM-dd HH:mm:ss').format(dt)} • ${_timeAgo(dt)}';
+                                        return '${DateFormat('yyyy-MM-dd HH:mm:ss').format(dt)} • ${formatTimeAgo(dt)}';
                                       }
                                       return 'just now';
                                     })(),

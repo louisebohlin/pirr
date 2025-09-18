@@ -63,6 +63,12 @@ pirr_app/
 │   ├── main.dart              # App entry point + Firebase init
 │   ├── login_screen.dart      # Auth UI (login/signup)
 │   ├── entries_screen.dart    # Main screen with entries
+│   ├── models/
+│   │   └── entry.dart         # Data model with Firestore serialization
+│   ├── services/
+│   │   ├── entry_service.dart      # Entry CRUD operations
+│   │   ├── analytics_service.dart  # Analytics event management
+│   │   └── remote_config_service.dart # Remote configuration
 │   └── utils/
 │       └── time_ago.dart      # Time formatting utility
 ├── test/                      # Widget + unit tests
@@ -72,24 +78,44 @@ pirr_app/
 ### Tech Stack
 - **Frontend:** Flutter 3.x with Material 3 design
 - **Backend:** Firebase (Auth, Firestore, Analytics, Remote Config)
-- **State:** StatelessWidgets with setState (simple state management)
+- **State:** Service layer pattern with proper separation of concerns
 - **Navigation:** MaterialApp with StreamBuilder for auth routing
+- **Architecture:** Clean architecture with models, services, and UI separation
 
 ### Data Model
+```dart
+// Entry model with Firestore serialization
+class Entry {
+  final String id;
+  final String text;
+  final DateTime createdAt;
+  final String userId;
+  
+  // Methods: fromFirestore(), toFirestore(), copyWith()
+}
+```
+
 ```javascript
 // Firestore structure
 users/{uid}/entries/{entryId}
 ├── text: string              // Entry text
 ├── createdAt: timestamp      // Server timestamp
+├── userId: string           // User ID for security
 └── (Remote Config controls date display)
 ```
 
 ### Firebase Services
 - **Authentication:** Email/password with FirebaseAuth
-- **Database:** Firestore with real-time updates
-- **Analytics:** Automatic screen tracking + custom events
-- **Remote Config:** Toggle for date display per entry
-- **Storage:** SharedPreferences for local state
+- **Database:** Firestore with real-time updates and optimized indexes
+- **Analytics:** Comprehensive event tracking with meaningful parameters
+- **Remote Config:** Feature toggles and configuration management
+- **Storage:** SharedPreferences for local state persistence
+
+### Service Layer
+- **EntryService:** Handles all CRUD operations for entries with proper error handling
+- **AnalyticsService:** Centralized analytics event management with rich parameter tracking
+- **RemoteConfigService:** Manages feature flags and configuration with fallback defaults
+- **Error Handling:** Comprehensive error management with user-friendly feedback throughout the app
 
 ## 🔧 Configuration
 
@@ -107,6 +133,8 @@ linter:
 ### CI/CD
 - GitHub Actions runs `flutter analyze` and `flutter test` on push/PR
 - Workflow: `.github/workflows/flutter.yml`
+- Automated testing with comprehensive coverage reporting
+- Code quality checks and security scanning
 
 ### Environment Variables
 - **Emulator:** `10.0.2.2:8080` (Android), `localhost:8080` (iOS/Web)
@@ -123,21 +151,37 @@ flutter test
 - `login_screen_test.dart`: Email/password validation
 - `time_ago_test.dart`: Time formatting utility
 - `smoke_test.dart`: Basic app startup
+- Service layer classes are designed for easy unit testing with dependency injection
 
 ## 📊 Analytics Events
 
-The app logs the following events to Firebase Analytics:
+The app logs comprehensive events to Firebase Analytics:
 
 ```dart
-// Automatic events
+// Screen tracking
 screen_view(screen_name: 'EntriesScreen')
 
-// Custom events
+// Authentication events
 login(login_method: 'password')
-sign_up(sign_up_method: 'password') 
-entry_created(entry_id: string, text_length: number)
-entry_deleted(entry_id: string)
+sign_up(sign_up_method: 'password')
+user_logout()
+
+// Entry management
+entry_created(entry_id: string, text_length: number, user_id: string)
+entry_deleted(entry_id: string, user_id: string)
+entry_updated(entry_id: string, text_length: number, user_id: string)
+
+// Feature usage
+feature_usage(feature_name: string, parameters: Map)
+date_visibility_toggle(entry_id: string, show_date: bool)
+
+// Error tracking
+app_error(error_type: string, error_message: string)
 ```
+
+**User Properties:**
+- `app_version`: Current app version
+- `user_type`: User classification
 
 **Debugging:** Use Firebase Console → Analytics → DebugView for real-time viewing.
 
@@ -148,30 +192,52 @@ entry_deleted(entry_id: string)
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only authenticated users can read/write their own entries
-    match /users/{userId}/entries/{entryId} {
+    match /users/{userId} {
+      // Allow the user to read/write their own user doc
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Nested "entries" collection for each user
+      match /entries/{entryId} {
+        // Only the owner can create, read, update, or delete entries
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
 ```
 
+### Database Indexes
+The app includes optimized Firestore indexes for better query performance:
+- `entries` collection: `createdAt` (descending)
+- `entries` collection: `userId` + `createdAt` (composite)
+- `entries` collection: `createdAt` (ascending)
+
 ### Data Validation
-- **Client-side:** Email format, password length (6+ chars)
-- **Server-side:** Firestore rules ensure data access control
+- **Client-side:** Email format, password length (6+ chars), entry text validation
+- **Server-side:** Firestore rules ensure data access control with principle of least privilege
+- **Error Handling:** User-friendly error messages with proper error boundaries
 
 ## 🚀 Next Steps
 
 - [ ] **Offline support:** Cache entries locally with Hive/SQLite
 - [ ] **Dark mode:** Theme toggle with SharedPreferences
-- [ ] **Entry editing:** Edit existing entries
-- [ ] **State management:** Migrate to Riverpod/Bloc for better state
+- [ ] **Entry editing:** Edit existing entries (Remote Config ready)
+- [ ] **Batch operations:** Delete multiple entries (Remote Config ready)
 - [ ] **Search & filter:** Search functionality and categories
+- [ ] **Push notifications:** Real-time updates and reminders
 
-### Technical Debt
-- [ ] **Error handling:** Centralized error handling with try/catch
-- [ ] **Performance:** Lazy loading and pagination for large datasets
-- [ ] **Accessibility:** Screen reader support and keyboard navigation
+### Performance Optimizations
+- [x] **Service layer:** Clean architecture with separation of concerns
+- [x] **Database indexes:** Optimized Firestore queries with composite indexes
+- [x] **Error handling:** Comprehensive error management with user feedback
+- [x] **Real-time updates:** Efficient StreamBuilder implementation
+- [ ] **Lazy loading:** Pagination for large datasets
+- [ ] **Caching:** Local data persistence
+
+### Accessibility & UX
+- [ ] **Screen reader support:** Accessibility labels and semantics
+- [ ] **Keyboard navigation:** Full keyboard support
+- [ ] **Internationalization:** Multi-language support
 
 ## 📚 Resources
 

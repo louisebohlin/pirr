@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:pirr_app/services/analytics_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLogin;
@@ -36,8 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        await FirebaseAnalytics.instance.logLogin(loginMethod: 'password');
-        debugPrint('Logged event: login');
+        await AnalyticsService().logLogin(loginMethod: 'password');
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(
           context,
@@ -47,8 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        await FirebaseAnalytics.instance.logSignUp(signUpMethod: 'password');
-        debugPrint('Logged event: sign_up');
+        await AnalyticsService().logSignUp(signUpMethod: 'password');
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully!')),

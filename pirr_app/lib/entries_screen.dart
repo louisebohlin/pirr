@@ -1,12 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:pirr_app/utils/time_ago.dart';
+import 'package:pirr_app/models/entry.dart';
+import 'package:pirr_app/services/entry_service.dart';
+import 'package:pirr_app/services/remote_config_service.dart';
+import 'package:pirr_app/services/analytics_service.dart';
 
 class EntriesScreen extends StatefulWidget {
   const EntriesScreen({super.key});
@@ -17,99 +18,79 @@ class EntriesScreen extends StatefulWidget {
 
 class _EntriesScreenState extends State<EntriesScreen> {
   final _textController = TextEditingController();
+  final _entryService = EntryService();
+  final _remoteConfigService = RemoteConfigService();
+  final _analyticsService = AnalyticsService();
+
   bool _showDateChip = false; // controlled by Remote Config
   final Map<String, bool> _entryShowDate = {}; // per-entry visibility
   static const String _prefsKeyEntryShowDate = 'entryShowDateVisibility';
 
-  // Moved to utils for testability: see formatTimeAgo
-
   @override
   void initState() {
     super.initState();
-    // Log screen view for Analytics
-    FirebaseAnalytics.instance.logScreenView(screenName: 'EntriesScreen');
-    debugPrint('Logged screen view: EntriesScreen');
-    _setupRemoteConfig();
-    _loadEntryVisibility();
+    _initializeServices();
   }
 
-  /// Initialize and fetch Remote Config
-  Future<void> _setupRemoteConfig() async {
-    final remoteConfig = FirebaseRemoteConfig.instance;
+  Future<void> _initializeServices() async {
+    // Log screen view for Analytics
+    await _analyticsService.logScreenView(screenName: 'EntriesScreen');
 
-    // Set default values in case fetch fails
-    await remoteConfig.setDefaults({'showDateChip': true});
-
-    // Dev-friendly settings so new values apply immediately
-    await remoteConfig.setConfigSettings(
-      RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: Duration.zero,
-      ),
+    // Log feature usage for Remote Config
+    await _analyticsService.logFeatureUsage(
+      featureName: 'remote_config_initialized',
+      parameters: {
+        'show_date_chip': _remoteConfigService.showDateChip,
+        'max_entry_length': _remoteConfigService.maxEntryLength,
+        'enable_entry_editing': _remoteConfigService.enableEntryEditing,
+      },
     );
 
-    try {
-      await remoteConfig.fetchAndActivate();
-    } catch (e) {
-      debugPrint('Remote Config fetch failed: $e');
-    }
-
-    final value = remoteConfig.getBool('showDateChip');
-    debugPrint('Remote Config showDateChip: $value');
+    // Initialize Remote Config
+    await _remoteConfigService.initialize();
     setState(() {
-      _showDateChip = value;
+      _showDateChip = _remoteConfigService.showDateChip;
     });
+
+    // Load entry visibility preferences
+    await _loadEntryVisibility();
   }
 
-  /// Helper to get the current user's "entries" collection
-  CollectionReference<Map<String, dynamic>> _entriesRef() {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      throw StateError('No authenticated user');
-    }
-    final uid = currentUser.uid;
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('entries');
-  }
-
-  /// Add a new entry to Firestore and log an Analytics event
+  /// Add a new entry using the service layer
   Future<void> _addEntry() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
 
-    final docRef = await _entriesRef().add({
-      'text': text,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    _textController.clear();
-
-    // Log analytics event
-    await FirebaseAnalytics.instance.logEvent(
-      name: 'entry_created',
-      parameters: {'entry_id': docRef.id, 'text_length': text.length},
-    );
-    debugPrint('Logged event: entry_created');
+    try {
+      await _entryService.addEntry(text);
+      _textController.clear();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error adding entry: $e')));
+      }
+    }
   }
 
-  /// Delete an entry from Firestore and log an Analytics event
-  Future<void> _deleteEntry(String docId) async {
-    await _entriesRef().doc(docId).delete();
+  /// Delete an entry using the service layer
+  Future<void> _deleteEntry(String entryId) async {
+    try {
+      await _entryService.deleteEntry(entryId);
 
-    // Log analytics event
-    await FirebaseAnalytics.instance.logEvent(
-      name: 'entry_deleted',
-      parameters: {'entry_id': docId},
-    );
-
-    // Clean up persisted visibility for deleted entry
-    if (_entryShowDate.containsKey(docId)) {
-      setState(() {
-        _entryShowDate.remove(docId);
-      });
-      await _saveEntryVisibility();
+      // Clean up persisted visibility for deleted entry
+      if (_entryShowDate.containsKey(entryId)) {
+        setState(() {
+          _entryShowDate.remove(entryId);
+        });
+        await _saveEntryVisibility();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting entry: $e')));
+      }
     }
   }
 
@@ -146,6 +127,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
         actions: [
           IconButton(
             onPressed: () async {
+              await _analyticsService.logLogout();
               await FirebaseAuth.instance.signOut();
             },
             icon: const Icon(Icons.logout),
@@ -188,12 +170,8 @@ class _EntriesScreenState extends State<EntriesScreen> {
           ),
           // Real-time list of entries
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseAuth.instance.currentUser == null
-                  ? const Stream.empty()
-                  : _entriesRef()
-                        .orderBy('createdAt', descending: true)
-                        .snapshots(),
+            child: StreamBuilder<List<Entry>>(
+              stream: _entryService.getEntriesStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -204,23 +182,22 @@ class _EntriesScreenState extends State<EntriesScreen> {
                 if (FirebaseAuth.instance.currentUser == null) {
                   return const Center(child: Text('Please sign in'));
                 }
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
+                final entries = snapshot.data ?? [];
+                if (entries.isEmpty) {
                   return const Center(child: Text('No entries yet'));
                 }
                 return ListView.builder(
-                  itemCount: docs.length,
+                  itemCount: entries.length,
                   itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data();
-                    final show = _entryShowDate[doc.id] ?? _showDateChip;
+                    final entry = entries[index];
+                    final show = _entryShowDate[entry.id] ?? _showDateChip;
                     return Card(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 6,
                       ),
                       child: ListTile(
-                        title: Text(data['text'] ?? ''),
+                        title: Text(entry.text),
                         // Always show toggle icon; conditionally show date text
                         subtitle: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -233,22 +210,26 @@ class _EntriesScreenState extends State<EntriesScreen> {
                               ),
                               onPressed: () async {
                                 setState(() {
-                                  _entryShowDate[doc.id] = !show;
+                                  _entryShowDate[entry.id] = !show;
                                 });
                                 await _saveEntryVisibility();
+
+                                // Log analytics for date visibility toggle
+                                await _analyticsService.logFeatureUsage(
+                                  featureName: 'date_visibility_toggle',
+                                  parameters: {
+                                    'entry_id': entry.id,
+                                    'show_date': !show,
+                                    'is_global_setting':
+                                        _entryShowDate[entry.id] == null,
+                                  },
+                                );
                               },
                             ),
                             if (show) ...[
                               const SizedBox(width: 4),
                               Text(
-                                (() {
-                                  final ts = data['createdAt'];
-                                  if (ts is Timestamp) {
-                                    final dt = ts.toDate().toLocal();
-                                    return '${DateFormat('yyyy-MM-dd').format(dt)} • ${formatTimeAgo(dt)}';
-                                  }
-                                  return 'just now';
-                                })(),
+                                '${DateFormat('yyyy-MM-dd').format(entry.createdAt)} • ${formatTimeAgo(entry.createdAt)}',
                               ),
                             ],
                           ],
@@ -258,7 +239,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
                           children: [
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteEntry(doc.id),
+                              onPressed: () => _deleteEntry(entry.id),
                             ),
                           ],
                         ),

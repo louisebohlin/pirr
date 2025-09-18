@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:pirr_app/login_screen.dart';
 import 'package:pirr_app/entries_screen.dart';
+import 'package:pirr_app/services/analytics_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,13 @@ Future<void> main() async {
 
   // Ensure Analytics collection is enabled (should be by default)
   await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+
+  // Set up analytics service with user properties
+  final analyticsService = AnalyticsService();
+  await analyticsService.setUserProperties(
+    appVersion: '1.0.0',
+    userType: 'standard',
+  );
 
   // Debug: Log that Analytics is enabled
   debugPrint('Analytics collection enabled: true');

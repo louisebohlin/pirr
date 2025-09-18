@@ -26,6 +26,8 @@ class _EntriesScreenState extends State<EntriesScreen> {
   @override
   void initState() {
     super.initState();
+    // Log screen view for Analytics
+    FirebaseAnalytics.instance.logScreenView(screenName: 'EntriesScreen');
     _setupRemoteConfig();
     _loadEntryVisibility();
   }

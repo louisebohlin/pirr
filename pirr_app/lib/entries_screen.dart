@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter/material.dart';
 
 class EntriesScreen extends StatefulWidget {
   const EntriesScreen({super.key});
@@ -12,8 +13,33 @@ class EntriesScreen extends StatefulWidget {
 
 class _EntriesScreenState extends State<EntriesScreen> {
   final _textController = TextEditingController();
+  bool _showDateChip = false; // controlled by Remote Config
 
-  /// Hjälpfunktion för att hämta path till "entries" för inloggad användare
+  @override
+  void initState() {
+    super.initState();
+    _setupRemoteConfig();
+  }
+
+  /// Initialize and fetch Remote Config
+  Future<void> _setupRemoteConfig() async {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+
+    // Set default values in case fetch fails
+    await remoteConfig.setDefaults({'showDateChip': false});
+
+    try {
+      await remoteConfig.fetchAndActivate();
+    } catch (e) {
+      debugPrint("Remote Config fetch failed: $e");
+    }
+
+    setState(() {
+      _showDateChip = remoteConfig.getBool('showDateChip');
+    });
+  }
+
+  /// Helper to get the current user's "entries" collection
   CollectionReference<Map<String, dynamic>> _entriesRef() {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     return FirebaseFirestore.instance
@@ -22,6 +48,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
         .collection('entries');
   }
 
+  /// Add a new entry to Firestore and log an Analytics event
   Future<void> _addEntry() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
@@ -33,17 +60,18 @@ class _EntriesScreenState extends State<EntriesScreen> {
 
     _textController.clear();
 
-    // 🔥 Logga analytics-event
+    // Log analytics event
     await FirebaseAnalytics.instance.logEvent(
       name: 'entry_created',
       parameters: {'entry_id': docRef.id, 'text_length': text.length},
     );
   }
 
+  /// Delete an entry from Firestore and log an Analytics event
   Future<void> _deleteEntry(String docId) async {
     await _entriesRef().doc(docId).delete();
 
-    // 🔥 Logga analytics-event
+    // Log analytics event
     await FirebaseAnalytics.instance.logEvent(
       name: 'entry_deleted',
       parameters: {'entry_id': docId},
@@ -66,6 +94,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
       ),
       body: Column(
         children: [
+          // Input field + send button
           Padding(
             padding: const EdgeInsets.all(8),
             child: Row(
@@ -82,6 +111,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
               ],
             ),
           ),
+          // Real-time list of entries
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _entriesRef()
@@ -105,7 +135,8 @@ class _EntriesScreenState extends State<EntriesScreen> {
                     final data = doc.data();
                     return ListTile(
                       title: Text(data['text'] ?? ''),
-                      subtitle: data['createdAt'] != null
+                      // Only show date if Remote Config flag is true
+                      subtitle: (_showDateChip && data['createdAt'] != null)
                           ? Text(
                               data['createdAt'].toDate().toString().substring(
                                 0,

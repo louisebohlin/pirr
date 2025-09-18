@@ -37,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
           password: password,
         );
         await FirebaseAnalytics.instance.logLogin(loginMethod: 'password');
+        debugPrint('Logged event: login');
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(
           context,
@@ -47,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
           password: password,
         );
         await FirebaseAnalytics.instance.logSignUp(signUpMethod: 'password');
+        debugPrint('Logged event: sign_up');
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully!')),

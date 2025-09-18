@@ -28,6 +28,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
     super.initState();
     // Log screen view for Analytics
     FirebaseAnalytics.instance.logScreenView(screenName: 'EntriesScreen');
+    debugPrint('Logged screen view: EntriesScreen');
     _setupRemoteConfig();
     _loadEntryVisibility();
   }
@@ -90,6 +91,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
       name: 'entry_created',
       parameters: {'entry_id': docRef.id, 'text_length': text.length},
     );
+    debugPrint('Logged event: entry_created');
   }
 
   /// Delete an entry from Firestore and log an Analytics event

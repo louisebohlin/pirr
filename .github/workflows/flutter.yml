@@ -19,14 +19,21 @@ jobs:
         with:
           flutter-version: 'stable'
 
+      # Go into the Flutter project folder
+      - name: Change working directory
+        run: cd pirr_app
+
       # Install dependencies
       - name: Install dependencies
+        working-directory: pirr_app
         run: flutter pub get
 
       # Analyze Dart code
       - name: Analyze project
+        working-directory: pirr_app
         run: flutter analyze
 
       # Run tests
       - name: Run tests
+        working-directory: pirr_app
         run: flutter test

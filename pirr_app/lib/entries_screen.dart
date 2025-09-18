@@ -152,19 +152,34 @@ class _EntriesScreenState extends State<EntriesScreen> {
         children: [
           // Input field + send button
           Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    decoration: const InputDecoration(
-                      labelText: 'Write something...',
-                    ),
-                  ),
+            padding: const EdgeInsets.all(12),
+            child: Card(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
                 ),
-                IconButton(onPressed: _addEntry, icon: const Icon(Icons.send)),
-              ],
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        decoration: const InputDecoration(
+                          labelText: 'Write something...',
+                          prefixIcon: Icon(Icons.edit_outlined),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _addEntry,
+                      icon: const Icon(Icons.send),
+                      label: const Text('Add'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           // Real-time list of entries
@@ -195,49 +210,54 @@ class _EntriesScreenState extends State<EntriesScreen> {
                     final doc = docs[index];
                     final data = doc.data();
                     final show = _entryShowDate[doc.id] ?? _showDateChip;
-                    return ListTile(
-                      title: Text(data['text'] ?? ''),
-                      // Only show date if Remote Config flag is true
-                      subtitle: (show)
-                          ? Wrap(
-                              spacing: 8,
-                              children: [
-                                Chip(
-                                  avatar: const Icon(Icons.schedule, size: 18),
-                                  label: Text(
-                                    (() {
-                                      final ts = data['createdAt'];
-                                      if (ts is Timestamp) {
-                                        final dt = ts.toDate().toLocal();
-                                        return '${DateFormat('yyyy-MM-dd HH:mm:ss').format(dt)} • ${formatTimeAgo(dt)}';
-                                      }
-                                      return 'just now';
-                                    })(),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: show ? 'Hide date' : 'Show date',
-                            icon: Icon(
-                              show ? Icons.schedule : Icons.schedule_outlined,
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      child: ListTile(
+                        title: Text(data['text'] ?? ''),
+                        // Always show toggle icon; conditionally show date text
+                        subtitle: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: show ? 'Hide date' : 'Show date',
+                              icon: Icon(
+                                show ? Icons.schedule : Icons.schedule_outlined,
+                                size: 18,
+                              ),
+                              onPressed: () async {
+                                setState(() {
+                                  _entryShowDate[doc.id] = !show;
+                                });
+                                await _saveEntryVisibility();
+                              },
                             ),
-                            onPressed: () async {
-                              setState(() {
-                                _entryShowDate[doc.id] = !show;
-                              });
-                              await _saveEntryVisibility();
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteEntry(doc.id),
-                          ),
-                        ],
+                            if (show) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                (() {
+                                  final ts = data['createdAt'];
+                                  if (ts is Timestamp) {
+                                    final dt = ts.toDate().toLocal();
+                                    return '${DateFormat('yyyy-MM-dd').format(dt)} • ${formatTimeAgo(dt)}';
+                                  }
+                                  return 'just now';
+                                })(),
+                              ),
+                            ],
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteEntry(doc.id),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

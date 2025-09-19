@@ -37,9 +37,10 @@ class _EntriesScreenState extends State<EntriesScreen> {
     await _analyticsService.logScreenView(screenName: 'EntriesScreen');
 
     // Log feature usage for Remote Config
-    await _analyticsService.logFeatureUsage(
-      featureName: 'remote_config_initialized',
+    await _analyticsService.logEvent(
+      eventName: 'feature_usage',
       parameters: {
+        'feature_name': 'remote_config_initialized',
         'show_date_chip': _remoteConfigService.showDateChip,
         'max_entry_length': _remoteConfigService.maxEntryLength,
       },
@@ -126,7 +127,7 @@ class _EntriesScreenState extends State<EntriesScreen> {
         actions: [
           IconButton(
             onPressed: () async {
-              await _analyticsService.logLogout();
+              await _analyticsService.logEvent(eventName: 'user_logout');
               await FirebaseAuth.instance.signOut();
             },
             icon: const Icon(Icons.logout),
@@ -214,9 +215,10 @@ class _EntriesScreenState extends State<EntriesScreen> {
                                 await _saveEntryVisibility();
 
                                 // Log analytics for date visibility toggle
-                                await _analyticsService.logFeatureUsage(
-                                  featureName: 'date_visibility_toggle',
+                                await _analyticsService.logEvent(
+                                  eventName: 'feature_usage',
                                   parameters: {
+                                    'feature_name': 'date_visibility_toggle',
                                     'entry_id': entry.id,
                                     'show_date': !show,
                                     'is_global_setting':

@@ -36,7 +36,10 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        await AnalyticsService().logLogin(loginMethod: 'password');
+        await AnalyticsService().logEvent(
+          eventName: 'login',
+          parameters: {'login_method': 'password'},
+        );
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(
           context,
@@ -46,7 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           password: password,
         );
-        await AnalyticsService().logSignUp(signUpMethod: 'password');
+        await AnalyticsService().logEvent(
+          eventName: 'sign_up',
+          parameters: {'sign_up_method': 'password'},
+        );
         if (!mounted) return; // ✅ ensure context is valid
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Account created successfully!')),

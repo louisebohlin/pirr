@@ -22,9 +22,6 @@ Future<void> main() async {
     userType: 'standard',
   );
 
-  // Debug: Log that Analytics is enabled
-  debugPrint('Analytics collection enabled: true');
-
   // 👉 Use Firestore Emulator in local development
   if (Platform.isAndroid) {
     // Android emulator can't reach "localhost" directly

@@ -13,32 +13,37 @@ class EntryService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AnalyticsService _analyticsService = AnalyticsService();
 
-  /// Get the current user's entries collection reference
-  CollectionReference<Map<String, dynamic>> _getEntriesRef() {
+  /// Get the current user, throwing if not authenticated
+  User _getCurrentUser() {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
       throw StateError('No authenticated user');
     }
+    return currentUser;
+  }
+
+  /// Get the current user's entries collection reference
+  CollectionReference<Map<String, dynamic>> _getEntriesRef() {
     return _firestore
         .collection('users')
-        .doc(currentUser.uid)
+        .doc(_getCurrentUser().uid)
         .collection('entries');
   }
 
   /// Get a stream of entries for the current user, ordered by creation date
   Stream<List<Entry>> getEntriesStream() {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
+    try {
+      return _getEntriesRef()
+          .orderBy('createdAt', descending: true)
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.docs.map((doc) => Entry.fromFirestore(doc)).toList(),
+          );
+    } catch (e) {
+      // Return empty stream if user not authenticated
       return Stream.value([]);
     }
-
-    return _getEntriesRef()
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => Entry.fromFirestore(doc)).toList(),
-        );
   }
 
   /// Add a new entry
@@ -47,11 +52,7 @@ class EntryService {
       throw ArgumentError('Entry text cannot be empty');
     }
 
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw StateError('No authenticated user');
-    }
-
+    final currentUser = _getCurrentUser();
     final entryData = {
       'text': text.trim(),
       'createdAt': FieldValue.serverTimestamp(),
@@ -61,9 +62,9 @@ class EntryService {
     final docRef = await _getEntriesRef().add(entryData);
 
     // Log analytics event
-    await _analyticsService.logEntryCreated(
-      entryId: docRef.id,
-      textLength: text.trim().length,
+    await _analyticsService.logEvent(
+      eventName: 'entry_created',
+      parameters: {'entry_id': docRef.id, 'text_length': text.trim().length},
     );
 
     return docRef.id;
@@ -71,15 +72,14 @@ class EntryService {
 
   /// Delete an entry
   Future<void> deleteEntry(String entryId) async {
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw StateError('No authenticated user');
-    }
-
+    _getCurrentUser(); // Ensure user is authenticated
     await _getEntriesRef().doc(entryId).delete();
 
     // Log analytics event
-    await _analyticsService.logEntryDeleted(entryId: entryId);
+    await _analyticsService.logEvent(
+      eventName: 'entry_deleted',
+      parameters: {'entry_id': entryId},
+    );
   }
 
   /// Update an entry
@@ -88,20 +88,16 @@ class EntryService {
       throw ArgumentError('Entry text cannot be empty');
     }
 
-    final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      throw StateError('No authenticated user');
-    }
-
+    _getCurrentUser(); // Ensure user is authenticated
     await _getEntriesRef().doc(entryId).update({
       'text': newText.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
     // Log analytics event
-    await _analyticsService.logEntryUpdated(
-      entryId: entryId,
-      textLength: newText.trim().length,
+    await _analyticsService.logEvent(
+      eventName: 'entry_updated',
+      parameters: {'entry_id': entryId, 'text_length': newText.trim().length},
     );
   }
 

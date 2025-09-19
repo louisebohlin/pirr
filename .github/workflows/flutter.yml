@@ -32,13 +32,34 @@ jobs:
         run: flutter test
         working-directory: pirr_app
 
+      - name: Create google-services.json from secret
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' | base64 -d > pirr_app/android/app/google-services.json
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
       - name: Build release APK
         run: flutter build apk --release
         working-directory: pirr_app
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+      - name: Build debug APK (for PRs)
+        run: flutter build apk --debug
+        working-directory: pirr_app
+        if: github.event_name == 'pull_request'
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: pirr-mini-apk
           path: pirr_app/build/app/outputs/flutter-apk/app-release.apk
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pirr-mini-debug-apk
+          path: pirr_app/build/app/outputs/flutter-apk/app-debug.apk
+        if: github.event_name == 'pull_request'
 

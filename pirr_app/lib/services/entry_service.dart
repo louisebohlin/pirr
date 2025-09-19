@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:pirr_app/models/entry.dart';
+import 'package:pirr_app/services/analytics_service.dart';
 
 /// Service class for managing entries in Firestore
 class EntryService {
@@ -11,7 +11,7 @@ class EntryService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  final AnalyticsService _analyticsService = AnalyticsService();
 
   /// Get the current user's entries collection reference
   CollectionReference<Map<String, dynamic>> _getEntriesRef() {
@@ -61,13 +61,9 @@ class EntryService {
     final docRef = await _getEntriesRef().add(entryData);
 
     // Log analytics event
-    await _analytics.logEvent(
-      name: 'entry_created',
-      parameters: {
-        'entry_id': docRef.id,
-        'text_length': text.trim().length,
-        'user_id': currentUser.uid,
-      },
+    await _analyticsService.logEntryCreated(
+      entryId: docRef.id,
+      textLength: text.trim().length,
     );
 
     return docRef.id;
@@ -83,10 +79,7 @@ class EntryService {
     await _getEntriesRef().doc(entryId).delete();
 
     // Log analytics event
-    await _analytics.logEvent(
-      name: 'entry_deleted',
-      parameters: {'entry_id': entryId, 'user_id': currentUser.uid},
-    );
+    await _analyticsService.logEntryDeleted(entryId: entryId);
   }
 
   /// Update an entry
@@ -106,13 +99,9 @@ class EntryService {
     });
 
     // Log analytics event
-    await _analytics.logEvent(
-      name: 'entry_updated',
-      parameters: {
-        'entry_id': entryId,
-        'text_length': newText.trim().length,
-        'user_id': currentUser.uid,
-      },
+    await _analyticsService.logEntryUpdated(
+      entryId: entryId,
+      textLength: newText.trim().length,
     );
   }
 

@@ -122,29 +122,6 @@ class AnalyticsService {
     }
   }
 
-  /// Log app error
-  Future<void> logError({
-    required String errorType,
-    required String errorMessage,
-    String? stackTrace,
-  }) async {
-    try {
-      await _analytics.logEvent(
-        name: 'app_error',
-        parameters: {
-          'error_type': errorType,
-          'error_message': errorMessage,
-          'stack_trace': stackTrace ?? '',
-          'user_id': _auth.currentUser?.uid ?? 'anonymous',
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        },
-      );
-      debugPrint('Analytics: Error logged - $errorType');
-    } catch (e) {
-      debugPrint('Analytics error: $e');
-    }
-  }
-
   /// Log feature usage
   Future<void> logFeatureUsage({
     required String featureName,

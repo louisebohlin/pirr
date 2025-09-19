@@ -15,8 +15,6 @@ class RemoteConfigService {
     await _remoteConfig.setDefaults({
       'showDateChip': true,
       'maxEntryLength': 1000,
-      'enableEntryEditing': true,
-      'enableBatchOperations': false,
     });
 
     // Configure settings for development
@@ -41,19 +39,9 @@ class RemoteConfigService {
     return _remoteConfig.getBool(key);
   }
 
-  /// Get string value from Remote Config
-  String getString(String key) {
-    return _remoteConfig.getString(key);
-  }
-
   /// Get integer value from Remote Config
   int getInt(String key) {
     return _remoteConfig.getInt(key);
-  }
-
-  /// Get double value from Remote Config
-  double getDouble(String key) {
-    return _remoteConfig.getDouble(key);
   }
 
   /// Check if date chip should be shown
@@ -61,12 +49,6 @@ class RemoteConfigService {
 
   /// Get maximum entry length
   int get maxEntryLength => getInt('maxEntryLength');
-
-  /// Check if entry editing is enabled
-  bool get enableEntryEditing => getBool('enableEntryEditing');
-
-  /// Check if batch operations are enabled
-  bool get enableBatchOperations => getBool('enableBatchOperations');
 
   /// Force fetch and activate new values
   Future<bool> fetchAndActivate() async {

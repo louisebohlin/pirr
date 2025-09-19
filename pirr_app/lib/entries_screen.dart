@@ -42,7 +42,6 @@ class _EntriesScreenState extends State<EntriesScreen> {
       parameters: {
         'show_date_chip': _remoteConfigService.showDateChip,
         'max_entry_length': _remoteConfigService.maxEntryLength,
-        'enable_entry_editing': _remoteConfigService.enableEntryEditing,
       },
     );
 

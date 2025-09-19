@@ -2,38 +2,43 @@ name: Flutter CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout source code
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Setup Flutter
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.4'
+          channel: stable
+          cache: true
 
-      # Go into the Flutter project folder
-      - name: Change working directory
-        run: cd pirr_app
-
-      # Install dependencies
       - name: Install dependencies
-        working-directory: pirr_app
         run: flutter pub get
-
-      # Analyze Dart code
-      - name: Analyze project
         working-directory: pirr_app
+
+      - name: Analyze code
         run: flutter analyze
-
-      # Run tests
-      - name: Run tests
         working-directory: pirr_app
+
+      - name: Run tests
         run: flutter test
+        working-directory: pirr_app
+
+      - name: Build release APK
+        run: flutter build apk --release
+        working-directory: pirr_app
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pirr-mini-apk
+          path: pirr_app/build/app/outputs/flutter-apk/app-release.apk
+

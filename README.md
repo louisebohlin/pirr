@@ -112,8 +112,8 @@ users/{uid}/entries/{entryId}
 - **Storage:** SharedPreferences for local state persistence
 
 ### Service Layer
-- **EntryService:** Handles all CRUD operations for entries with proper error handling
-- **AnalyticsService:** Centralized analytics event management with rich parameter tracking
+- **EntryService:** Handles all CRUD operations for entries with optimized user authentication checks
+- **AnalyticsService:** Consolidated analytics with 3 generic methods (logEvent, logScreenView, setUserProperties)
 - **RemoteConfigService:** Manages feature flags and configuration with fallback defaults
 - **Error Handling:** Comprehensive error management with user-friendly feedback throughout the app
 
@@ -133,6 +133,8 @@ linter:
 ### CI/CD
 - GitHub Actions runs `flutter analyze` and `flutter test` on push/PR
 - Workflow: `.github/workflows/flutter.yml`
+- **Debug APK builds** for pull requests (no Firebase config needed)
+- **Release APK builds** for main branch (with secure Firebase config from GitHub secrets)
 - Automated testing with comprehensive coverage reporting
 - Code quality checks and security scanning
 
@@ -208,9 +210,7 @@ service cloud.firestore {
 
 ### Database Indexes
 The app includes optimized Firestore indexes for better query performance:
-- `entries` collection: `createdAt` (descending)
-- `entries` collection: `userId` + `createdAt` (composite)
-- `entries` collection: `createdAt` (ascending)
+- `entries` collection: `createdAt` (descending) - Used for real-time entry listing
 
 ### Data Validation
 - **Client-side:** Email format, password length (6+ chars), entry text validation
